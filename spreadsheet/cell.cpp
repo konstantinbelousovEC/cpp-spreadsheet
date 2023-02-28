@@ -49,29 +49,31 @@ Cell::Cell(SheetInterface& sheet, Position position)
 
 Cell::~Cell() = default;
 
-void Cell::Set(std::string text) {
+void Cell::Set(const std::string& text) {
     if (text.empty()) {
         impl_ = std::make_unique<EmptyImpl>();
+        RemoveDependencies();
     } else if (text.front() == FORMULA_SIGN && text.size() != 1) {
         std::unique_ptr<FormulaImpl> impl_tmp = std::make_unique<FormulaImpl>(text.substr(1));
         const std::vector<Position>& positions = impl_tmp->GetReferencedCells();
         PositionsSet cells_included_by_me_tmp(positions.begin(), positions.end());
         if (HasCircularDependencies(cells_included_by_me_tmp)) throw CircularDependencyException("Circular dependency was found"s);
-        RemoveDependencies();
         impl_ = std::move(impl_tmp);
         cells_included_by_me_ = std::move(cells_included_by_me_tmp);
         for (const Position& pos : cells_included_by_me_) {
             if (sheet_.GetCell(pos) == nullptr) sheet_.SetCell(pos, ""s);
         }
+        RemoveDependencies();
         AddDependencies();
-        InvalidateCache();
     } else {
         impl_ = std::make_unique<TextImpl>(text);
+        RemoveDependencies();
     }
+    InvalidateCache();
 }
 
 void Cell::Clear() {
-    impl_ = std::make_unique<EmptyImpl>();
+    Set(""s);
 }
 
 Cell::Value Cell::GetValue() const {
@@ -98,30 +100,29 @@ void Cell::AddDependencies() {
 
 bool Cell::HasCircularDependencies(const PositionsSet& new_dependents) const {
     PositionsSet visited;
-    visited.insert(position_);
-    return HasCircularDependencies(visited, new_dependents);
+    return HasCircularDependencies(position_, visited, new_dependents);
 }
 
-bool Cell::HasCircularDependencies(PositionsSet& visited, const PositionsSet& new_dependents) const {
+bool Cell::HasCircularDependencies(Position start_position, PositionsSet& visited, const PositionsSet& new_dependents) const {
     for (Position position : new_dependents) {
-        if (HasCircularDependencies(position, visited)) return true;
+        if (HasCircularDependencies(start_position, position, visited)) return true;
     }
     return false;
 }
 
-bool Cell::HasCircularDependencies(Position position, PositionsSet& visited) const {
-    if (visited.find(position) != visited.end()) return true;
+bool Cell::HasCircularDependencies(Position start_position, Position position, PositionsSet& visited) const {
+    if (position == start_position) return true;
+    if (visited.find(position) != visited.end()) return false;
     visited.insert(position);
     Cell* cell = static_cast<Cell*>(sheet_.GetCell(position));
     if (cell == nullptr) return false;
     for (Position pos : cell->cells_included_by_me_) {
-        if (HasCircularDependencies(pos, visited)) return true;
+        if (HasCircularDependencies(start_position, pos, visited)) return true;
     }
     return false;
 }
 
 void Cell::InvalidateCache() {
-    if (!impl_->HasCache()) return;
     impl_->InvalidateCache();
     for (Position position : cells_included_me_) {
         Cell* cell = static_cast<Cell*>(sheet_.GetCell(position));

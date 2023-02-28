@@ -42,7 +42,10 @@ CellInterface* Sheet::GetCell(Position pos) {
 
 void Sheet::ClearCell(Position pos) {
     if (!pos.IsValid()) throw InvalidPositionException("invalid position value range"s);
-    if (cells_.count(pos) > 0) cells_.erase(pos);
+    if (cells_.count(pos) > 0) {
+        cells_[pos]->Clear();
+        cells_.erase(pos);
+    }
 }
 
 Size Sheet::GetPrintableSize() const {

@@ -21,7 +21,7 @@ public:
 
 private:
     enum class PrintType;
+    void Print(std::ostream& output, PrintType type) const;
 
     std::unordered_map<Position, std::unique_ptr<Cell>, std::hash<Position>> cells_;
-    void Print(std::ostream& output, PrintType type) const;
 };

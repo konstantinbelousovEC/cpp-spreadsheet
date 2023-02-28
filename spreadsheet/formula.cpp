@@ -38,24 +38,22 @@ namespace {
     FormulaInterface::Value Formula::Evaluate(const SheetInterface& sheet) const {
         auto lambda = [&](Position pos) -> double {
             const CellInterface* cell = sheet.GetCell(pos);
-            if (cell == nullptr) {
-                return 0.0;
-            } else {
-                CellInterface::Value value = cell->GetValue();
-                if (std::holds_alternative<double>(value)) {
-                    return std::get<double>(value);
-                } else if (std::holds_alternative<std::string>(value)) {
-                    std::string string_value = std::get<std::string>(value);
-                    if (string_value.empty()) return 0.0;
-                    try {
-                        double double_value = stod(string_value);
-                        return double_value;
-                    } catch (std::invalid_argument&) {
-                        throw FormulaError(FormulaError::Category::Value);
-                    }
-                } else {
-                    throw FormulaError(std::get<FormulaError>(value));
+            if (cell == nullptr) return 0.0;
+
+            CellInterface::Value value = cell->GetValue();
+            if (std::holds_alternative<double>(value)) {
+                return std::get<double>(value);
+            } else if (std::holds_alternative<std::string>(value)) {
+                std::string string_value = std::get<std::string>(value);
+                if (string_value.empty()) return 0.0;
+                try {
+                    double double_value = stod(string_value);
+                    return double_value;
+                } catch (std::invalid_argument&) {
+                    throw FormulaError(FormulaError::Category::Value);
                 }
+            } else {
+                throw FormulaError(std::get<FormulaError>(value));
             }
         };
 
