@@ -11,6 +11,7 @@ class CellImpl;
 class Cell : public CellInterface {
 public:
     explicit Cell(SheetInterface& sheet, Position position);
+    Cell(Cell&& other);
     ~Cell();
 
     void Set(const std::string& text);
@@ -28,7 +29,6 @@ private:
     PositionsSet cells_included_me_;
     PositionsSet cells_included_by_me_;
 
-    //bool HasCircularDependencies(Position start_position, Position position, PositionsSet& visited) const;
     bool HasCircularDependencies(Position start_position, PositionsSet& visited, const PositionsSet& new_dependents) const;
     bool HasCircularDependencies(const PositionsSet& new_dependents) const;
     void RemoveDependencies();

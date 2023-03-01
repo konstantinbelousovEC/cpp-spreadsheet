@@ -47,6 +47,13 @@ private:
 Cell::Cell(SheetInterface& sheet, Position position)
 : sheet_(sheet), impl_(std::make_unique<EmptyImpl>()), position_(position) {}
 
+Cell::Cell(Cell &&other)
+: sheet_(other.sheet_),
+  impl_(std::move(other.impl_)),
+  position_(other.position_),
+  cells_included_me_(std::move(other.cells_included_me_)),
+  cells_included_by_me_(std::move(other.cells_included_by_me_)) {}
+
 Cell::~Cell() = default;
 
 void Cell::Set(const std::string& text) {
@@ -82,13 +89,11 @@ std::string Cell::GetText() const {
 void Cell::UpdateDependencies(PositionsSet&& cells_included_by_me_tmp) {
     InvalidateCache();
     RemoveDependencies();
-    if (!cells_included_by_me_tmp.empty()) {
-        cells_included_by_me_ = std::move(cells_included_by_me_tmp);
-        for (const Position& pos : cells_included_by_me_) {
-            if (sheet_.GetCell(pos) == nullptr) sheet_.SetCell(pos, ""s);
-        }
-        AddDependencies();
+    cells_included_by_me_ = std::move(cells_included_by_me_tmp);
+    for (const Position& pos : cells_included_by_me_) {
+        if (sheet_.GetCell(pos) == nullptr) sheet_.SetCell(pos, ""s);
     }
+    AddDependencies();
 }
 
 void Cell::RemoveDependencies() {

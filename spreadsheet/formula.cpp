@@ -46,12 +46,10 @@ namespace {
             } else if (std::holds_alternative<std::string>(value)) {
                 std::string string_value = std::get<std::string>(value);
                 if (string_value.empty()) return 0.0;
-                try {
-                    double double_value = stod(string_value);
-                    return double_value;
-                } catch (std::invalid_argument&) {
-                    throw FormulaError(FormulaError::Category::Value);
-                }
+                double result;
+                std::istringstream parsing_stream(string_value);
+                if (!(parsing_stream >> result)) throw FormulaError(FormulaError::Category::Value);
+                return result;
             } else {
                 throw FormulaError(std::get<FormulaError>(value));
             }

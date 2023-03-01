@@ -389,6 +389,16 @@ namespace {
             }
             ASSERT(uncaught);
         }
+        {
+            auto sheet = CreateSheet();
+            sheet->SetCell("A1"_pos, "10");
+            sheet->SetCell("A2"_pos, "=A1");
+            sheet->SetCell("A3"_pos, "3");
+            sheet->SetCell("A4"_pos, "=A3+A2");
+            CellInterface::Value value = 13.0;
+            ASSERT_EQUAL(sheet->GetCell("A4"_pos)->GetValue(), value);
+            sheet->SetCell("A4"_pos, "1");
+        }
     }
 }  // namespace
 

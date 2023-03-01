@@ -16,10 +16,16 @@ Sheet::~Sheet() {}
 
 void Sheet::SetCell(Position pos, std::string text) {
     if (!pos.IsValid()) throw InvalidPositionException("invalid position value range"s);
-    if (GetCell(pos) != nullptr && GetCell(pos)->GetText() == text) return;
-    std::unique_ptr<Cell> cell = std::make_unique<Cell>(*this, pos);
-    cell->Set(text);
-    cells_[pos] = std::move(cell);
+    Cell* cell_existing = static_cast<Cell*>(GetCell(pos));
+    if (cell_existing == nullptr) {
+        std::unique_ptr<Cell> cell = std::make_unique<Cell>(*this, pos);
+        cell->Set(text);
+        cells_[pos] = std::move(cell);
+    } else {
+        if (cell_existing->GetText() == text) return;
+        cell_existing->Set(text);
+        cells_[pos] = std::make_unique<Cell>(std::move(*cell_existing));
+    }
 }
 
 const CellInterface* Sheet::GetCell(Position pos) const {
