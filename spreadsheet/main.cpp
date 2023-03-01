@@ -347,6 +347,49 @@ namespace {
         ASSERT(caught);
         ASSERT_EQUAL(sheet->GetCell("M6"_pos)->GetText(), "Ready");
     }
+
+    void MyTest() {
+        {
+            auto sheet = CreateSheet();
+            bool caught = false;
+            try {
+                sheet->SetCell("A1"_pos, "=A1");
+            } catch (const CircularDependencyException&) {
+                caught = true;
+            }
+            ASSERT(caught);
+        }
+        {
+            auto sheet = CreateSheet();
+            sheet->SetCell("A1"_pos, "10");
+            sheet->SetCell("A2"_pos, "=A1");
+            CellInterface::Value value1 = 10.0;
+            ASSERT_EQUAL(sheet->GetCell("A2"_pos)->GetValue(), value1);
+            sheet->ClearCell("A1"_pos);
+            CellInterface::Value value2 = 0.0;
+            ASSERT_EQUAL(sheet->GetCell("A2"_pos)->GetValue(), value2);
+        }
+        {
+            auto sheet = CreateSheet();
+            sheet->SetCell("A1"_pos, "10");
+            sheet->SetCell("A2"_pos, "=A1");
+            sheet->ClearCell("A1"_pos);
+            CellInterface::Value value = 0.0;
+            ASSERT_EQUAL(sheet->GetCell("A2"_pos)->GetValue(), value);
+        }
+        {
+            auto sheet = CreateSheet();
+            bool uncaught = true;
+            try {
+                sheet->SetCell("A3"_pos, "6"s);
+                sheet->SetCell("A2"_pos, "=A3"s);
+                sheet->SetCell("A1"_pos, "=A2 + A3"s);
+            } catch (const CircularDependencyException&) {
+                uncaught = false;
+            }
+            ASSERT(uncaught);
+        }
+    }
 }  // namespace
 
 int main() {
@@ -370,5 +413,6 @@ int main() {
     RUN_TEST(tr, TestCellReferences);
     RUN_TEST(tr, TestFormulaIncorrect);
     RUN_TEST(tr, TestCellCircularReferences);
+    RUN_TEST(tr, MyTest);
     return 0;
 }

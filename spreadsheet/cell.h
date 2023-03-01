@@ -28,10 +28,11 @@ private:
     PositionsSet cells_included_me_;
     PositionsSet cells_included_by_me_;
 
-    bool HasCircularDependencies(Position start_position, Position position, PositionsSet& visited) const;
+    //bool HasCircularDependencies(Position start_position, Position position, PositionsSet& visited) const;
     bool HasCircularDependencies(Position start_position, PositionsSet& visited, const PositionsSet& new_dependents) const;
     bool HasCircularDependencies(const PositionsSet& new_dependents) const;
     void RemoveDependencies();
     void AddDependencies();
+    void UpdateDependencies(PositionsSet&& cells_included_by_me_tmp);
     void InvalidateCache();
 };

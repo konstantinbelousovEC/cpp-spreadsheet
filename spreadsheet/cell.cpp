@@ -45,31 +45,26 @@ private:
 };
 
 Cell::Cell(SheetInterface& sheet, Position position)
-: sheet_(sheet), impl_(nullptr), position_(position) {}
+: sheet_(sheet), impl_(std::make_unique<EmptyImpl>()), position_(position) {}
 
 Cell::~Cell() = default;
 
 void Cell::Set(const std::string& text) {
-    if (text.empty()) {
-        impl_ = std::make_unique<EmptyImpl>();
-        RemoveDependencies();
-    } else if (text.front() == FORMULA_SIGN && text.size() != 1) {
+    if (text.front() == FORMULA_SIGN && text.size() != 1) {
         std::unique_ptr<FormulaImpl> impl_tmp = std::make_unique<FormulaImpl>(text.substr(1));
         const std::vector<Position>& positions = impl_tmp->GetReferencedCells();
         PositionsSet cells_included_by_me_tmp(positions.begin(), positions.end());
         if (HasCircularDependencies(cells_included_by_me_tmp)) throw CircularDependencyException("Circular dependency was found"s);
+        UpdateDependencies(std::move(cells_included_by_me_tmp));
         impl_ = std::move(impl_tmp);
-        cells_included_by_me_ = std::move(cells_included_by_me_tmp);
-        for (const Position& pos : cells_included_by_me_) {
-            if (sheet_.GetCell(pos) == nullptr) sheet_.SetCell(pos, ""s);
-        }
-        RemoveDependencies();
-        AddDependencies();
     } else {
-        impl_ = std::make_unique<TextImpl>(text);
-        RemoveDependencies();
+        UpdateDependencies(PositionsSet{});
+        if (text.empty()) {
+            impl_ = std::make_unique<EmptyImpl>();
+        } else {
+            impl_ = std::make_unique<TextImpl>(text);
+        }
     }
-    InvalidateCache();
 }
 
 void Cell::Clear() {
@@ -82,6 +77,18 @@ Cell::Value Cell::GetValue() const {
 
 std::string Cell::GetText() const {
     return impl_->GetText();
+}
+
+void Cell::UpdateDependencies(PositionsSet&& cells_included_by_me_tmp) {
+    InvalidateCache();
+    RemoveDependencies();
+    if (!cells_included_by_me_tmp.empty()) {
+        cells_included_by_me_ = std::move(cells_included_by_me_tmp);
+        for (const Position& pos : cells_included_by_me_) {
+            if (sheet_.GetCell(pos) == nullptr) sheet_.SetCell(pos, ""s);
+        }
+        AddDependencies();
+    }
 }
 
 void Cell::RemoveDependencies() {
@@ -98,32 +105,33 @@ void Cell::AddDependencies() {
     }
 }
 
-bool Cell::HasCircularDependencies(const PositionsSet& new_dependents) const {
+bool Cell::HasCircularDependencies(const PositionsSet& dependents) const {
     PositionsSet visited;
-    return HasCircularDependencies(position_, visited, new_dependents);
+    return HasCircularDependencies(position_, visited, dependents);
 }
 
-bool Cell::HasCircularDependencies(Position start_position, PositionsSet& visited, const PositionsSet& new_dependents) const {
-    for (Position position : new_dependents) {
-        if (HasCircularDependencies(start_position, position, visited)) return true;
-    }
-    return false;
-}
+bool Cell::HasCircularDependencies(Position start_position, PositionsSet& visited, const PositionsSet& dependents) const {
+    for (Position pos : dependents) {
+        if (visited.count(pos) > 0) continue;
+        visited.insert(pos);
 
-bool Cell::HasCircularDependencies(Position start_position, Position position, PositionsSet& visited) const {
-    if (position == start_position) return true;
-    if (visited.find(position) != visited.end()) return false;
-    visited.insert(position);
-    Cell* cell = static_cast<Cell*>(sheet_.GetCell(position));
-    if (cell == nullptr) return false;
-    for (Position pos : cell->cells_included_by_me_) {
-        if (HasCircularDependencies(start_position, pos, visited)) return true;
+        Cell* cell = static_cast<Cell*>(sheet_.GetCell(pos));
+
+        if (pos == start_position) return true;
+        if (cell == nullptr) continue;
+
+        if (HasCircularDependencies(
+                start_position,
+                visited,
+                cell->cells_included_by_me_)) {
+            return true;
+        }
     }
     return false;
 }
 
 void Cell::InvalidateCache() {
-    impl_->InvalidateCache();
+    if (impl_->HasCache()) impl_->InvalidateCache();
     for (Position position : cells_included_me_) {
         Cell* cell = static_cast<Cell*>(sheet_.GetCell(position));
         if (cell != nullptr) cell->InvalidateCache();
