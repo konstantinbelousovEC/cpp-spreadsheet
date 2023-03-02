@@ -47,13 +47,6 @@ private:
 Cell::Cell(SheetInterface& sheet, Position position)
 : sheet_(sheet), impl_(std::make_unique<EmptyImpl>()), position_(position) {}
 
-Cell::Cell(Cell &&other)
-: sheet_(other.sheet_),
-  impl_(std::move(other.impl_)),
-  position_(other.position_),
-  cells_included_me_(std::move(other.cells_included_me_)),
-  cells_included_by_me_(std::move(other.cells_included_by_me_)) {}
-
 Cell::~Cell() = default;
 
 void Cell::Set(const std::string& text) {
@@ -136,10 +129,12 @@ bool Cell::HasCircularDependencies(Position start_position, PositionsSet& visite
 }
 
 void Cell::InvalidateCache() {
-    if (impl_->HasCache()) impl_->InvalidateCache();
+    impl_->InvalidateCache();
     for (Position position : cells_included_me_) {
         Cell* cell = static_cast<Cell*>(sheet_.GetCell(position));
-        if (cell != nullptr) cell->InvalidateCache();
+        if (cell != nullptr && cell->impl_->HasCache()) {
+            cell->InvalidateCache();
+        };
     }
 }
 

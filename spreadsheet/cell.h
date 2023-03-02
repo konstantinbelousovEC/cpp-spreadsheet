@@ -11,7 +11,6 @@ class CellImpl;
 class Cell : public CellInterface {
 public:
     explicit Cell(SheetInterface& sheet, Position position);
-    Cell(Cell&& other);
     ~Cell();
 
     void Set(const std::string& text);

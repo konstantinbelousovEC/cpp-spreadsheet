@@ -24,7 +24,6 @@ void Sheet::SetCell(Position pos, std::string text) {
     } else {
         if (cell_existing->GetText() == text) return;
         cell_existing->Set(text);
-        cells_[pos] = std::make_unique<Cell>(std::move(*cell_existing));
     }
 }
 
